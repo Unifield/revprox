@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-	"golang.org/x/net/context"
 )
 
 // A locationFixer is a transport that wraps a http.Transport
@@ -123,19 +121,7 @@ func rp() *httputil.ReverseProxy {
 	}
 }
 
-func DomainWhitelist(dom string) autocert.HostPolicy {
-	return func(_ context.Context, host string) error {
-
-		if !strings.HasSuffix(host, dom) {
-			return errors.New("revprox: domain not allowed")
-		}
-		return nil
-	}
-}
-
-func reverseProxy(dom string) {
-	log.Print("Starting reverse proxy for domain ", dom)
-
+func getLEServer(fqdn string) *http.Server {
 	// Load the LetsEncrypt root
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(lePem))
@@ -168,16 +154,29 @@ func reverseProxy(dom string) {
 	m := &autocert.Manager{
 		Client:     ac,
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: DomainWhitelist(dom),
+		HostPolicy: autocert.HostWhitelist(fqdn),
 		Cache:      autocert.DirCache(filepath.Join(os.TempDir(), "autocert")),
 	}
-	s := &http.Server{
+	return &http.Server{
 		Addr:      ":https",
 		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
-		Handler:   rp(),
 	}
+}
 
-	err := s.ListenAndServeTLS("", "")
+func reverseProxy(key, cer, fqdn string) {
+	log.Print("Starting reverse proxy for ", fqdn)
+
+	var s *http.Server
+	if key == "" {
+		s = getLEServer(fqdn)
+	} else {
+		s = &http.Server{
+			Addr: ":https",
+		}
+	}
+	s.Handler = rp()
+
+	err := s.ListenAndServeTLS(cer, key)
 	if err != nil {
 		log.Fatal("could not listen: ", err)
 	}
