@@ -26,7 +26,8 @@ type locationFixer struct {
 func (lf *locationFixer) RoundTrip(req *http.Request) (*http.Response, error) {
 	if lf.t == nil {
 		// Same defaults as http.DefaultTransport, except
-		// IdleConnTimeout is lower than CherryPy's.
+		// IdleConnTimeout is lower than CherryPy's in order to
+		// avoid "Unsolicited response received" errors.
 		lf.t = &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -34,7 +35,7 @@ func (lf *locationFixer) RoundTrip(req *http.Request) (*http.Response, error) {
 				KeepAlive: 30 * time.Second,
 			}).DialContext,
 			MaxIdleConns:          100,
-			IdleConnTimeout:       10 * time.Second,
+			IdleConnTimeout:       1 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
 		}
@@ -178,7 +179,7 @@ func reverseProxy(key, cer, fqdn string) {
 
 	err := s.ListenAndServeTLS(cer, key)
 	if err != nil {
-		log.Fatal("could not listen: ", err)
+		log.Fatal("reverse proxy could not listen: ", err)
 	}
 	return
 }
