@@ -15,3 +15,4 @@ requests to port 18061, where OpenERP Web should be running.
 ## Running in Linux as a non-priv user
 
 Build it like this: "go build && sudo setcap CAP_NET_BIND_SERVICE=+eip revprox"
+

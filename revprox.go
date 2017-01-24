@@ -122,7 +122,7 @@ func rp() *httputil.ReverseProxy {
 	}
 }
 
-func getLEServer(fqdn string) *http.Server {
+func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	// Load the LetsEncrypt root
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(lePem))
@@ -158,26 +158,62 @@ func getLEServer(fqdn string) *http.Server {
 		HostPolicy: autocert.HostWhitelist(fqdn),
 		Cache:      autocert.DirCache(filepath.Join(os.TempDir(), "autocert")),
 	}
-	return &http.Server{
-		Addr:      ":https",
-		TLSConfig: &tls.Config{GetCertificate: m.GetCertificate},
-	}
+	return m.GetCertificate
 }
 
 func reverseProxy(key, cer, fqdn string) {
+	// On Windows, another process (damn you, Skype) can open
+	// port 443 in a way so that revprox still starts, but does not
+	// work. Prevent that from happening.
+	_, err := net.Dial("tcp", "127.0.0.1:443")
+	if err == nil {
+		log.Fatal("A server is already running on port 443. Is it Skype?")
+	}
+
 	log.Print("Starting reverse proxy for ", fqdn)
 
-	var s *http.Server
-	if key == "" {
-		s = getLEServer(fqdn)
-	} else {
-		s = &http.Server{
-			Addr: ":https",
-		}
-	}
-	s.Handler = rp()
+	// Config proposed by:
+	// https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
+	tc := &tls.Config{
+		// Causes servers to use Go's default ciphersuite preferences,
+		// which are tuned to avoid attacks. Does nothing on clients.
+		PreferServerCipherSuites: true,
+		// Only use curves which have assembly implementations
+		CurvePreferences: []tls.CurveID{
+			tls.CurveP256,
+			tls.X25519,
+		},
+		MinVersion: tls.VersionTLS12,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
+			tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+			tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 
-	err := s.ListenAndServeTLS(cer, key)
+			// Best disabled, as they don't provide Forward Secrecy,
+			// but might be necessary for some clients
+			// tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		},
+	}
+	if key == "" {
+		tc.GetCertificate = getCertViaLE(fqdn)
+	}
+
+	// Timeouts proposed by
+	// https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
+	s := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Addr:         ":https",
+		TLSConfig:    tc,
+		Handler:      rp(),
+	}
+
+	err = s.ListenAndServeTLS(cer, key)
 	if err != nil {
 		log.Fatal("reverse proxy could not listen: ", err)
 	}

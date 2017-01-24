@@ -3,7 +3,9 @@
 
 rev=$(shell git rev-parse --short HEAD)
 
-all: revprox revprox.exe
+all: build
+
+build: clean revprox revprox.exe
 
 clean:
 	rm -f revprox revprox.exe

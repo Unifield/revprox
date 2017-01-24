@@ -5,21 +5,21 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type portList []uint16
 
-func (p *portList)String() string {
+func (p *portList) String() string {
 	pstr := make([]string, len(*p))
 	for i, port := range *p {
 		pstr[i] = fmt.Sprintf("%d", port)
 	}
-	return strings.Join(pstr, ", ")	
+	return strings.Join(pstr, ", ")
 }
 
-func (p *portList)Set(s string) error {
+func (p *portList) Set(s string) error {
 	port, err := strconv.Atoi(s)
 	if err != nil {
 		return fmt.Errorf("could not parse int: %v", err)
@@ -34,7 +34,7 @@ func (p *portList)Set(s string) error {
 var domain = flag.String("domain", "prod.unifield.org", "The domain name for this server (not used if dot appears in server name).")
 var server = flag.String("server", "", "The server name.")
 var version = flag.Bool("version", false, "Show the version and exit.")
-var redirPorts = &portList{ }
+var redirPorts = &portList{}
 
 var gitRevision = "(dev)"
 
@@ -57,7 +57,7 @@ func main() {
 	if len(*redirPorts) == 0 {
 		redirPorts.Set("8061")
 	}
-	
+
 	log.Println("Finding a certificate for", fqdn)
 	keyFile := fmt.Sprintf("%v.key", fqdn)
 	cerFile := fmt.Sprintf("%v.cer", fqdn)
