@@ -11,7 +11,7 @@ clean:
 	rm -f revprox revprox.exe
 
 revprox:
-	GOOS=linux go build -ldflags "-X main.gitRevision=$(rev)"
+	GOOS=linux go build -ldflags "-s -w -X main.gitRevision=$(rev)"
 
 revprox.exe:
-	GOOS=windows go build -ldflags "-X main.gitRevision=$(rev)"
+	GOOS=windows go build -ldflags "-s -w -X main.gitRevision=$(rev)"
