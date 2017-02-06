@@ -1,12 +1,18 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type portList []uint16
@@ -62,28 +68,92 @@ func main() {
 	keyFile := fmt.Sprintf("%v.key", fqdn)
 	cerFile := fmt.Sprintf("%v.cer", fqdn)
 
-	// Try to find a key/cer. First look in the local dir for manual
-	// config.
-	if exists(keyFile) && exists(cerFile) && checkKeyCer(keyFile, cerFile) {
+	if exists(cerFile) && exists(keyFile) && checkCerKey(fqdn, cerFile, keyFile) {
+		log.Print("Using certificate in ", cerFile)
 	} else {
-		// No local key, so start in LetsEncrypt mode
+		log.Print("Using LetsEncrypt to get the certificate")
+		keyFile = ""
+		cerFile = ""
 	}
 
 	go reverseProxy(keyFile, cerFile, fqdn)
 	for _, port := range *redirPorts {
 		go redir(port, fqdn)
 	}
+
+	// Fetch from ourselves once to confirm we are up, so that we
+	// can tell OpenERP Web to use us.
+	ok := make(chan bool)
+	go checkSelf(fqdn, ok)
+	select {
+	case <-time.After(5 * time.Second):
+		log.Println("Timeout during start up. Exiting.")
+		return
+	case res := <-ok:
+		if res {
+			log.Println("Startup OK.")
+		} else {
+			log.Println("Startup not OK.")
+			return
+		}
+	}
+
 	<-make(chan bool)
 }
 
 func exists(fn string) bool {
 	_, err := os.Stat(fn)
-	return err != nil
+	return err == nil
 }
 
-func checkKeyCer(key, cer string) bool {
-	// load key, load cer, make sure they match
-	// make sure cer's CN matchs fdqn
-	// make sure the cert is not expired
+func checkCerKey(fqdn, cerFile, keyFile string) bool {
+	cer, err := tls.LoadX509KeyPair(cerFile, keyFile)
+	if err != nil {
+		log.Printf("Cannot load certificate: %v", err)
+		return false
+	}
+	x509Cert, err := x509.ParseCertificate(cer.Certificate[0])
+	if err != nil {
+		log.Printf("Cannot parse certificate: %v", err)
+		return false
+	}
+
+	// The defaults do the right thing: check with respect
+	// to the system roots, and for the current time.
+	opt := x509.VerifyOptions{
+		DNSName: fqdn,
+	}
+
+	_, err = x509Cert.Verify(opt)
+	if err != nil {
+		log.Print("Found certificate in %v but: %v", cerFile, err)
+		return false
+	}
 	return true
+}
+
+func checkSelf(fqdn string, ok chan bool) {
+	time.Sleep(1 * time.Second)
+	tr := &http.Transport{
+		// Use a hacky dialer that connects to localhost, no matter
+		// what the hostname is.
+		Dial: func(network, addr string) (net.Conn, error) {
+			return net.Dial("tcp", "127.0.0.1:443")
+		},
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Get(fmt.Sprintf("https://%v/ok", fqdn))
+	if err != nil {
+		log.Println("check self:", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Println("check self:", err)
+		return
+	}
+	ok <- string(body) == "ok"
+	return
 }

@@ -156,9 +156,20 @@ func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, err
 		Client:     ac,
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(fqdn),
-		Cache:      autocert.DirCache(filepath.Join(os.TempDir(), "autocert")),
+		Cache:      autocert.DirCache(cacheDir()),
 	}
 	return m.GetCertificate
+}
+
+func cacheDir() string {
+	if runtime.GOOS == "windows" {
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+		return filepath.Join(home, "autocert")
+	}
+	return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
 func reverseProxy(key, cer, fqdn string) {
@@ -202,6 +213,14 @@ func reverseProxy(key, cer, fqdn string) {
 		tc.GetCertificate = getCertViaLE(fqdn)
 	}
 
+	// Set up a mux to catch /ok requests, and pass the rest to the
+	// reverse proxy.
+	mux := http.NewServeMux()
+	mux.Handle("/ok", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	}))
+	mux.Handle("/", rp())
+
 	// Timeouts proposed by
 	// https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
 	s := &http.Server{
@@ -210,7 +229,7 @@ func reverseProxy(key, cer, fqdn string) {
 		IdleTimeout:  120 * time.Second,
 		Addr:         ":https",
 		TLSConfig:    tc,
-		Handler:      rp(),
+		Handler:      mux,
 	}
 
 	err = s.ListenAndServeTLS(cer, key)
