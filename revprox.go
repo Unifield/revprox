@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -122,7 +123,20 @@ func rp() *httputil.ReverseProxy {
 	}
 }
 
+func domainIsCertomat(fqdn string) bool {
+	if strings.HasSuffix(fqdn, ".dev.unifield.org") ||
+		strings.HasSuffix(fqdn, ".prod.unifield.org") {
+		return true
+	}
+	return false
+}
+
 func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	if domainIsCertomat(fqdn) {
+		mgr := &remoteAutocertManager{fqdn: fqdn}
+		return mgr.GetCertificate
+	}
+
 	// Load the LetsEncrypt root
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(lePem))

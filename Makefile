@@ -1,6 +1,7 @@
 # Use this makefile to create the binaries for checking into OpenERP Web,
 # so that they get an auditable version compiled into them.
 
+go=go1.8rc2
 rev=$(shell git rev-parse --short HEAD)
 
 all: build
@@ -11,7 +12,7 @@ clean:
 	rm -f revprox revprox.exe
 
 revprox:
-	GOOS=linux go build -ldflags "-s -w -X main.gitRevision=$(rev)"
+	GOOS=linux $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
 
 revprox.exe:
-	GOOS=windows go build -ldflags "-s -w -X main.gitRevision=$(rev)"
+	GOOS=windows $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
