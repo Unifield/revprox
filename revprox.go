@@ -125,7 +125,8 @@ func rp() *httputil.ReverseProxy {
 
 func domainIsCertomat(fqdn string) bool {
 	if strings.HasSuffix(fqdn, ".dev.unifield.org") ||
-		strings.HasSuffix(fqdn, ".prod.unifield.org") {
+		strings.HasSuffix(fqdn, ".prod.unifield.org") ||
+		strings.HasSuffix(fqdn, ".dev.unifield.biz") {
 		return true
 	}
 	return false
