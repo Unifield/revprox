@@ -14,7 +14,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -94,34 +93,30 @@ func (r *remoteAutocertManager) getCertFromCertomat(fqdn string) (*tls.Certifica
 	if err != nil {
 		return nil, fmt.Errorf("error reading body: %v", err)
 	}
-	log.Print("cert:", string(data))
 
-	priv, pub := pem.Decode(data)
-	if priv != nil {
-		return nil, errors.New("unexpected private key")
-	}
-
-	// public
-	var pubDER [][]byte
-	for len(pub) > 0 {
+	var certDer [][]byte
+	for len(data) > 0 {
 		var b *pem.Block
-		b, pub = pem.Decode(pub)
+		b, data = pem.Decode(data)
 		if b == nil {
 			break
 		}
-		pubDER = append(pubDER, b.Bytes)
+		if b.Type != "CERTIFICATE" {
+			continue
+		}
+		certDer = append(certDer, b.Bytes)
 	}
-	if len(pub) > 0 {
-		return nil, errors.New("invalid public key")
+	if len(certDer) == 0 {
+		return nil, errors.New("pem decode: did not find certificate")
 	}
 
 	// verify and create TLS cert
-	leaf, err := validCert(fqdn, pubDER, key)
+	leaf, err := validCert(fqdn, certDer, key)
 	if err != nil {
 		return nil, err
 	}
 	tlscert := &tls.Certificate{
-		Certificate: pubDER,
+		Certificate: certDer,
 		PrivateKey:  key,
 		Leaf:        leaf,
 	}

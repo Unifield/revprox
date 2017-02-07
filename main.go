@@ -86,7 +86,7 @@ func main() {
 	ok := make(chan bool)
 	go checkSelf(fqdn, ok)
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(10 * time.Second):
 		log.Println("Timeout during start up. Exiting.")
 		return
 	case res := <-ok:
@@ -126,7 +126,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) bool {
 
 	_, err = x509Cert.Verify(opt)
 	if err != nil {
-		log.Print("Found certificate in %v but: %v", cerFile, err)
+		log.Printf("Found certificate in %v but: %v", cerFile, err)
 		return false
 	}
 	return true
