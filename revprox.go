@@ -123,21 +123,7 @@ func rp() *httputil.ReverseProxy {
 	}
 }
 
-func domainIsCertomat(fqdn string) bool {
-	if strings.HasSuffix(fqdn, ".dev.unifield.org") ||
-		strings.HasSuffix(fqdn, ".prod.unifield.org") ||
-		strings.HasSuffix(fqdn, ".dev.unifield.biz") {
-		return true
-	}
-	return false
-}
-
 func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	if domainIsCertomat(fqdn) {
-		mgr := &remoteAutocertManager{fqdn: fqdn}
-		return mgr.GetCertificate
-	}
-
 	// Load the LetsEncrypt root
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(lePem))
@@ -187,7 +173,7 @@ func cacheDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
-func reverseProxy(key, cer, fqdn string) {
+func reverseProxy(keyFile, cerFile, fqdn string) {
 	// On Windows, another process (damn you, Skype) can open
 	// port 443 in a way so that revprox still starts, but does not
 	// work. Prevent that from happening.
@@ -224,7 +210,7 @@ func reverseProxy(key, cer, fqdn string) {
 			// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 		},
 	}
-	if key == "" {
+	if keyFile == "" {
 		tc.GetCertificate = getCertViaLE(fqdn)
 	}
 
@@ -247,7 +233,7 @@ func reverseProxy(key, cer, fqdn string) {
 		Handler:      mux,
 	}
 
-	err = s.ListenAndServeTLS(cer, key)
+	err = s.ListenAndServeTLS(cerFile, keyFile)
 	if err != nil {
 		log.Fatal("reverse proxy could not listen: ", err)
 	}
