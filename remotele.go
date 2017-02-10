@@ -65,11 +65,36 @@ func (r *remoteAutocertManager) GetCertificate(hello *tls.ClientHelloInfo) (*tls
 	return nil, r.err
 }
 
-// We are called with m.mu locked.
+// We are called with r.mu locked.
 func (r *remoteAutocertManager) getCertFromCertomat(fqdn string) (*tls.Certificate, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, err
+	var key *ecdsa.PrivateKey
+	keyFile := fmt.Sprintf("%v.key", fqdn)
+
+	if keydat, err := ioutil.ReadFile(keyFile); err == nil {
+		// Load the existing key
+		priv, _ := pem.Decode(keydat)
+		if priv != nil && strings.Contains(priv.Type, "PRIVATE") {
+			key, _ = x509.ParseECPrivateKey(priv.Bytes)
+		}
+	}
+
+	// Failed to load it, so generate it.
+	if key == nil {
+		var err error
+		key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+
+		// write the key
+		markey, err := x509.MarshalECPrivateKey(key)
+		if err != nil {
+			return nil, fmt.Errorf("could not marshal key: %v", err)
+		}
+		buf := &bytes.Buffer{}
+		pb := &pem.Block{Type: "EC PRIVATE KEY", Bytes: markey}
+		pem.Encode(buf, pb)
+		ioutil.WriteFile(keyFile, buf.Bytes(), 0600)
 	}
 
 	csr, err := certRequest(key, fqdn)
@@ -93,6 +118,8 @@ func (r *remoteAutocertManager) getCertFromCertomat(fqdn string) (*tls.Certifica
 	if err != nil {
 		return nil, fmt.Errorf("error reading body: %v", err)
 	}
+	// Save a copy to write into the file.
+	data2 := data
 
 	var certDer [][]byte
 	for len(data) > 0 {
@@ -120,6 +147,10 @@ func (r *remoteAutocertManager) getCertFromCertomat(fqdn string) (*tls.Certifica
 		PrivateKey:  key,
 		Leaf:        leaf,
 	}
+
+	// Write the certificate
+	ioutil.WriteFile(fmt.Sprintf("%v.cer", fqdn), data2, 0600)
+
 	return tlscert, nil
 }
 

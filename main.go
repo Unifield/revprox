@@ -118,10 +118,21 @@ func checkCerKey(fqdn, cerFile, keyFile string) bool {
 		return false
 	}
 
-	// The defaults do the right thing: check with respect
-	// to the system roots, and for the current time.
+	// We need to add the LE certificate onto the system roots here
+	// in case it is not trusted.
+	sroot, err := x509.SystemCertPool()
+	if err != nil {
+		log.Print("Cannot load system roots?")
+		return false
+	}
 	opt := x509.VerifyOptions{
 		DNSName: fqdn,
+		Roots:   sroot,
+	}
+	ok := opt.Roots.AppendCertsFromPEM([]byte(lePem))
+	if !ok {
+		log.Print("Cannot parse LE certificate?")
+		return false
 	}
 
 	_, err = x509Cert.Verify(opt)
