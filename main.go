@@ -154,7 +154,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
 	// in case it is not trusted.
 	sroot, err := x509.SystemCertPool()
 	if err != nil {
-		log.Print("Cannot load system roots?")
+		log.Print("Cannot load system roots: ", err)
 		return false, nil
 	}
 	opt := x509.VerifyOptions{

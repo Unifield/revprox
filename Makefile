@@ -1,7 +1,7 @@
 # Use this makefile to create the binaries for checking into OpenERP Web,
 # so that they get an auditable version compiled into them.
 
-go=go1.8rc2
+go=go1.8rc3
 rev=$(shell git rev-parse --short HEAD)
 
 all: build
