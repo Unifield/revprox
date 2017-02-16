@@ -47,12 +47,18 @@ func (p *portList) Set(s string) error {
 }
 
 var domain = flag.String("domain", "prod.unifield.org", "The domain name for this server (not used if dot appears in server name).")
-var usele = flag.Bool("usele", false, "Should we use LetsEncrypt? The server must be on the public Internet.")
 var server = flag.String("server", "", "The server name.")
 var version = flag.Bool("version", false, "Show the version and exit.")
 var redirPorts = &portList{}
 
 var gitRevision = "(dev)"
+
+func isCertomat(fqdn string) bool {
+	return strings.HasSuffix(fqdn, "dev.unifield.org") ||
+		strings.HasSuffix(fqdn, "prod.unifield.org") ||
+		strings.HasSuffix(fqdn, "dev.unifield.biz") ||
+		strings.HasSuffix(fqdn, "prod.unifield.biz")
+}
 
 func main() {
 	flag.Var(redirPorts, "redir", "ports to run a redirector on")
@@ -78,22 +84,23 @@ func main() {
 	keyFile := fmt.Sprintf("%v.key", fqdn)
 	cerFile := fmt.Sprintf("%v.cer", fqdn)
 
-	if *usele {
-		log.Print("Getting certificate directly from LetsEncrypt.")
-		keyFile = ""
-		cerFile = ""
-	} else if ok, cer := checkCerKey(fqdn, cerFile, keyFile); ok {
+	if ok, cer := checkCerKey(fqdn, cerFile, keyFile); ok {
 		log.Print("Using certificate in ", cerFile)
 		if isLE(cer) {
 			go renew(fqdn, cer)
 		}
-	} else {
+	} else if isCertomat(fqdn) {
 		log.Print("Getting a certificate from certomat")
 		err := getCertFromCertomat(fqdn)
 		if err != nil {
 			log.Fatal(err)
 		}
+	} else {
+		log.Print("Getting certificate directly from LetsEncrypt.")
+		keyFile = ""
+		cerFile = ""
 	}
+
 	go reverseProxy(keyFile, cerFile, fqdn)
 
 	for _, port := range *redirPorts {
@@ -130,7 +137,7 @@ func isLE(cer *x509.Certificate) bool {
 		0x65, 0xEF, 0xF3, 0xA8, 0xEC, 0xA1,
 	}
 	leX4 := [...]byte{
-                0xC5, 0xB1, 0xAB, 0x4E, 0x4C, 0xB1, 0xCD,
+		0xC5, 0xB1, 0xAB, 0x4E, 0x4C, 0xB1, 0xCD,
 		0x64, 0x30, 0x93, 0x7E, 0xC1, 0x84, 0x99,
 		0x05, 0xAB, 0xE6, 0x03, 0xE2, 0x25,
 	}
@@ -153,7 +160,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
 		log.Printf("Cannot load certificate: %v", err)
 		return false, nil
 	}
- 	x509Cert, err := x509.ParseCertificate(cer.Certificate[0])
+	x509Cert, err := x509.ParseCertificate(cer.Certificate[0])
 	if err != nil {
 		log.Printf("Cannot parse certificate: %v", err)
 		return false, nil
@@ -167,7 +174,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
 		log.Print("Validated via the system roots.")
 		return true, x509Cert
 	}
-	
+
 	// If we failed with the system roots, try with the LetsEncrypt
 	// ones, since some Windows do not trust LetsEncrypt yet.
 	// See https://github.com/golang/go/issues/18609 for why
@@ -191,7 +198,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
 func checkSelf(fqdn string, ok chan bool) {
 	// Give the reverse proxy time to start up.
 	time.Sleep(2 * time.Second)
-	
+
 	tr := &http.Transport{
 		// Use a custom dialer that connects to localhost, no matter
 		// what the hostname is, so that we check ourselves,
