@@ -54,10 +54,11 @@ var redirPorts = &portList{}
 var gitRevision = "(dev)"
 
 func isCertomat(fqdn string) bool {
-	return strings.HasSuffix(fqdn, "dev.unifield.org") ||
-		strings.HasSuffix(fqdn, "prod.unifield.org") ||
-		strings.HasSuffix(fqdn, "dev.unifield.biz") ||
-		strings.HasSuffix(fqdn, "prod.unifield.biz")
+	domain := getDomain(fqdn)
+	return domain == "dev.unifield.org" ||
+		domain == "prod.unifield.org" ||
+		domain == "dev.unifield.biz" ||
+		domain == "prod.unifield.biz"
 }
 
 func main() {
@@ -260,6 +261,11 @@ func getKey(fqdn string) (*ecdsa.PrivateKey, error) {
 	return key, nil
 }
 
+func getDomain(fqdn string) string {
+	x := strings.Split(fqdn, ".")
+	return strings.Join(x[1:], ".")
+}
+
 func getCertFromCertomat(fqdn string) error {
 	key, err := getKey(fqdn)
 	if err != nil {
@@ -272,7 +278,7 @@ func getCertFromCertomat(fqdn string) error {
 	}
 
 	client := &http.Client{Timeout: time.Duration(1 * time.Minute)}
-	url := "https://certomat.prod.unifield.org/get-cert-from-csr"
+	url := fmt.Sprintf("https://certomat.%v/get-cert-from-csr", getDomain(fqdn))
 	resp, err := client.Post(url, "text/plain", bytes.NewReader(csr))
 	if err != nil {
 		return err
