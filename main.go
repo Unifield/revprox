@@ -152,7 +152,15 @@ func exists(fn string) bool {
 }
 
 func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
-	if !exists(cerFile) || !exists(keyFile) {
+	if !exists(keyFile) {
+		// Do not log anything here, because this is the normal,
+		// expected path when they are not providing the key/cer
+		// to us.
+		return false, nil
+	}
+
+	if !exists(cerFile) {
+		log.Printf("Key file %v exists but certificate file %v does not exist.", keyFile, cerFile)
 		return false, nil
 	}
 
