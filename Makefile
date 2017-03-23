@@ -15,4 +15,4 @@ revprox:
 	GOOS=linux $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
 
 revprox.exe:
-	GOOS=windows $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
+	GOARCH=386 GOOS=windows $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
