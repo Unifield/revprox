@@ -280,7 +280,10 @@ func getCertFromCertomat(fqdn string) error {
 		return err
 	}
 
-	csr, err := certRequest(key, fqdn)
+	// US-2913: certbot gets mad when there is mixed case in the
+	// CSR. So we lowercase the fqdn before passing it to certRequest
+	// even though we hope that certbot will get fixed later.
+	csr, err := certRequest(key, strings.ToLower(fqdn))
 	if err != nil {
 		return err
 	}
