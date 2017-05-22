@@ -61,6 +61,12 @@ func isCertomat(fqdn string) bool {
 		domain == "prod.unifield.biz"
 }
 
+func isStaging(fqdn string) bool {
+	domain := getDomain(fqdn)
+	return domain == "dev.unifield.org" ||
+		domain == "dev.unifield.biz"
+}
+
 func main() {
 	flag.Var(redirPorts, "redir", "ports to run a redirector on")
 	flag.Parse()
@@ -84,6 +90,11 @@ func main() {
 	log.Println("Finding a certificate for", fqdn)
 	keyFile := fmt.Sprintf("%v.key", fqdn)
 	cerFile := fmt.Sprintf("%v.cer", fqdn)
+
+	lePem = leProdPem
+	if isStaging(fqdn) {
+		lePem = leStagingPem
+	}
 
 	if ok, cer := checkCerKey(fqdn, cerFile, keyFile); ok {
 		log.Print("Using certificate in ", cerFile)
