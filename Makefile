@@ -11,8 +11,11 @@ build: clean revprox revprox.exe
 clean:
 	rm -f revprox revprox.exe
 
-revprox:
+vendor:
+	dep ensure
+
+revprox: vendor
 	GOOS=linux $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
 
-revprox.exe:
+revprox.exe: vendor
 	GOARCH=386 GOOS=windows $(go) build -ldflags "-s -w -X main.gitRevision=$(rev)"
