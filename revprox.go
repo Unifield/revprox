@@ -123,17 +123,15 @@ func rp() *httputil.ReverseProxy {
 	}
 }
 
-func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+func getHttpClient() *http.Client {
 	// Load the LetsEncrypt root
 	roots := x509.NewCertPool()
 	ok := roots.AppendCertsFromPEM([]byte(lePem))
 	if !ok {
 		log.Fatal("failed to load certs")
 	}
-	t := &tls.Config{
-		RootCAs: roots,
-	}
-	hc := &http.Client{
+
+	return &http.Client{
 		// Use the same defaults as http.DefaultTransport
 		Transport: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
@@ -147,11 +145,16 @@ func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, err
 			ExpectContinueTimeout: 1 * time.Second,
 			// But add our own TLS config to trust
 			// the LetsEncrypt certificates.
-			TLSClientConfig: t,
+			TLSClientConfig: &tls.Config{
+				RootCAs: roots,
+			},
 		},
 	}
+}
+
+func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	ac := &acme.Client{
-		HTTPClient: hc,
+		HTTPClient: getHttpClient(),
 	}
 	m := &autocert.Manager{
 		Client:     ac,

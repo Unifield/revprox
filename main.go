@@ -299,7 +299,7 @@ func getCertFromCertomat(fqdn string) error {
 		return err
 	}
 
-	client := &http.Client{Timeout: time.Duration(1 * time.Minute)}
+	client := getHttpClient()
 	url := fmt.Sprintf("https://certomat.%v/get-cert-from-csr", getDomain(fqdn))
 	resp, err := client.Post(url, "text/plain", bytes.NewReader(csr))
 	if err != nil {
