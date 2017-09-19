@@ -14,5 +14,13 @@ requests to port 18061, where OpenERP Web should be running.
 
 ## Running in Linux as a non-priv user
 
-Build it like this: "go build && sudo setcap CAP_NET_BIND_SERVICE=+eip revprox"
+Build it like this: 
+
+```
+go build && sudo setcap CAP_NET_BIND_SERVICE=+eip revprox
+```
+
+The `setcap` command will allow `revprox` to bind to the appropriate priviledge port. 
+
+Note that this won't work if `revprox` is on a filesystem with the `nosuid` flag enabled (you can run `mount` to check this). If that's the case, you might need to move the file elsewhere so that it's able to bind. (N.B. : `cp` won't carry the capabilities across filsystems, you might need to reapply the setcap.)
 
