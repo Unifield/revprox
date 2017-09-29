@@ -136,6 +136,9 @@ func main() {
 		}
 	}
 
+	// Make this thread go to sleep so that the other threads
+	// can do their jobs. Without this, main would return
+	// and the runtime would kill the process and exit.
 	<-make(chan bool)
 }
 
