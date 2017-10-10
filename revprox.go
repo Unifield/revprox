@@ -228,12 +228,16 @@ func reverseProxy(keyFile, cerFile, fqdn string) {
 	// Timeouts proposed by
 	// https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
 	s := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  120 * time.Second,
-		Addr:         ":https",
-		TLSConfig:    tc,
-		Handler:      mux,
+		ReadTimeout: 5 * time.Second,
+		// Removing this timeout because of US-3357: With Go 1.9
+		// this timeout now fires even when there has not been any
+		// write yet, so it ends up causing a timeout when what
+		// we want to do is continue waiting on Unifield.
+		//WriteTimeout: 10 * time.Second,
+		IdleTimeout: 120 * time.Second,
+		Addr:        ":https",
+		TLSConfig:   tc,
+		Handler:     mux,
 	}
 
 	err = s.ListenAndServeTLS(cerFile, keyFile)
