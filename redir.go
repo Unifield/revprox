@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-func redir(port uint16, fqdn string) {
+func redir(port uint16, fqdn string, httpsPort string) {
 	hf := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Connection", "close")
 		r.URL.Scheme = "https"
-		r.URL.Host = fqdn
+		r.URL.Host = fmt.Sprintf("%v:%v", fqdn, httpsPort)
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 	})
 

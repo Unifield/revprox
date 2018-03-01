@@ -1,7 +1,7 @@
 # Use this makefile to create the binaries for checking into OpenERP Web,
 # so that they get an auditable version compiled into them.
 
-go=go1.9.1
+go=go
 
 # Thanks, Jessfraz.
 # https://github.com/jessfraz/amicontained/blob/master/Makefile

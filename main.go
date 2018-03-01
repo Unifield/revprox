@@ -50,6 +50,7 @@ var domain = flag.String("domain", "prod.unifield.org", "The domain name for thi
 var server = flag.String("server", "", "The server name.")
 var version = flag.Bool("version", false, "Show the version and exit.")
 var redirPorts = &portList{}
+var listenPort = flag.String("listen-port", "443", "Https port")
 
 var gitRevision = "(dev)"
 
@@ -113,16 +114,16 @@ func main() {
 		cerFile = ""
 	}
 
-	go reverseProxy(keyFile, cerFile, fqdn)
+	go reverseProxy(keyFile, cerFile, fqdn, *listenPort)
 
 	for _, port := range *redirPorts {
-		go redir(port, fqdn)
+		go redir(port, fqdn, *listenPort)
 	}
 
 	// Fetch from ourselves once to confirm we are up, so that we
 	// can tell OpenERP Web it should use us.
 	ok := make(chan bool)
-	go checkSelf(fqdn, ok)
+	go checkSelf(fqdn, *listenPort, ok)
 	select {
 	case <-time.After(10 * time.Second):
 		log.Println("Timeout during start up. Exiting.")
@@ -218,7 +219,7 @@ func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
 	return true, x509Cert
 }
 
-func checkSelf(fqdn string, ok chan bool) {
+func checkSelf(fqdn string, listenPort string, ok chan bool) {
 	// Give the reverse proxy time to start up.
 	time.Sleep(2 * time.Second)
 
@@ -227,7 +228,7 @@ func checkSelf(fqdn string, ok chan bool) {
 		// what the hostname is, so that we check ourselves,
 		// not the public address associated with the FQDN.
 		Dial: func(network, addr string) (net.Conn, error) {
-			return net.Dial("tcp", "127.0.0.1:443")
+			return net.Dial("tcp", fmt.Sprintf("127.0.0.1:%s", listenPort))
 		},
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}

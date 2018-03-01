@@ -13,7 +13,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
+	"fmt"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -22,6 +22,7 @@ import (
 // and which rewrites the Location headers on the replies.
 type locationFixer struct {
 	t *http.Transport
+	p string
 }
 
 func (lf *locationFixer) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -60,7 +61,7 @@ func (lf *locationFixer) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			log.Print(err)
 		} else {
-			l.Host = pub
+			l.Host = fmt.Sprintf("%v:%v", pub, lf.p)
 			resp.Header.Set("Location", l.String())
 		}
 	}
@@ -82,7 +83,7 @@ func singleJoiningSlash(a, b string) string {
 
 // This is httputil.NewSingleHostReverseProxy, but modified to
 // rewrite Referer and Location headers.
-func rp() *httputil.ReverseProxy {
+func rp(listenPort string) *httputil.ReverseProxy {
 	target, err := url.Parse("http://127.0.0.1:18061")
 	if err != nil {
 		log.Fatal(err)
@@ -119,7 +120,7 @@ func rp() *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
 		Director: director,
 		// Rewrite Location headers in the transport
-		Transport: &locationFixer{},
+		Transport: &locationFixer{p: listenPort},
 	}
 }
 
@@ -176,13 +177,13 @@ func cacheDir() string {
 	return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
-func reverseProxy(keyFile, cerFile, fqdn string) {
+func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
 	// On Windows, another process (damn you, Skype) can open
 	// port 443 in a way so that revprox still starts, but does not
 	// work. Prevent that from happening.
-	_, err := net.Dial("tcp", "127.0.0.1:443")
+	_, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%s", listenPort))
 	if err == nil {
-		log.Fatal("A server is already running on port 443. Is it Skype?")
+		log.Fatal("A server is already running on port %v. Is it Skype?", listenPort)
 	}
 
 	log.Print("Starting reverse proxy for ", fqdn)
@@ -223,7 +224,7 @@ func reverseProxy(keyFile, cerFile, fqdn string) {
 	mux.Handle("/ok", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	}))
-	mux.Handle("/", rp())
+	mux.Handle("/", rp(listenPort))
 
 	// Timeouts proposed by
 	// https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
@@ -235,7 +236,7 @@ func reverseProxy(keyFile, cerFile, fqdn string) {
 		// we want to do is continue waiting on Unifield.
 		//WriteTimeout: 10 * time.Second,
 		IdleTimeout: 120 * time.Second,
-		Addr:        ":https",
+		Addr:        fmt.Sprintf(":%v", listenPort),
 		TLSConfig:   tc,
 		Handler:     mux,
 	}
