@@ -15,7 +15,7 @@ func redir(port uint16, fqdn string, httpsPort string) {
 		http.Redirect(w, r, r.URL.String(), http.StatusFound)
 	})
 
-	log.Println("Running HTTP redirect server on port", port)
+	log.Println("Running HTTP redirect server on port", port, "listen on port", httpsPort)
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", port),
