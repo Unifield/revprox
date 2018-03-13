@@ -61,7 +61,12 @@ func (lf *locationFixer) RoundTrip(req *http.Request) (*http.Response, error) {
 		if err != nil {
 			log.Print(err)
 		} else {
-			l.Host = fmt.Sprintf("%v:%v", pub, lf.p)
+            if lf.p == "443" {
+    			l.Host = fmt.Sprintf("%v", pub)
+            } else {
+    			l.Host = fmt.Sprintf("%v:%v", pub, lf.p)
+
+            }
 			resp.Header.Set("Location", l.String())
 		}
 	}
