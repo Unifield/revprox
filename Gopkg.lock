@@ -5,7 +5,8 @@
   branch = "master"
   name = "golang.org/x/crypto"
   packages = ["acme","acme/autocert"]
-  revision = "0fe963104e9d1877082f8fb38f816fcd97eb1d10"
+  revision = "c3a3ad6"
+  #revision = "0fe963104e9d1877082f8fb38f816fcd97eb1d10"
 
 [solve-meta]
   analyzer-name = "dep"

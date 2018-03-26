@@ -168,6 +168,7 @@ func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, err
 		HostPolicy: autocert.HostWhitelist(fqdn),
 		Cache:      autocert.DirCache(cacheDir()),
 	}
+    go http.ListenAndServe(fmt.Sprintf("%v:80", fqdn), m.HTTPHandler(nil))
 	return m.GetCertificate
 }
 
@@ -188,7 +189,7 @@ func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
 	// work. Prevent that from happening.
 	_, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%s", listenPort))
 	if err == nil {
-		log.Fatal("A server is already running on port %v. Is it Skype?", listenPort)
+		log.Fatal("A server is already running on port", listenPort, "Is it Skype?")
 	}
 
 	log.Print("Starting reverse proxy for ", fqdn)
