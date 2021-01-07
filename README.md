@@ -14,7 +14,17 @@ requests to port 18061, where OpenERP Web should be running.
 
 ## Running in Linux as a non-priv user
 
-Build it like this: 
+Build it like this:
+```
+export GOPATH=~/GOPATH
+mkdir -p $GOPATH/src
+git clone git@github.com:jftempo/revprox.git $GOPATH/src/revprox
+cd $GOPATH/src/revprox
+make
+
+```
+
+or
 
 ```
 go build && sudo setcap CAP_NET_BIND_SERVICE=+eip revprox
