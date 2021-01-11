@@ -18,7 +18,7 @@ Build it like this:
 ```
 export GOPATH=~/GOPATH
 mkdir -p $GOPATH/src
-git clone git@github.com:jftempo/revprox.git $GOPATH/src/revprox
+git clone git@github.com:Unifield/revprox.git $GOPATH/src/revprox
 cd $GOPATH/src/revprox
 make
 
