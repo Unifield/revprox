@@ -157,7 +157,13 @@ func isLE(cer *x509.Certificate) bool {
 		0x64, 0x30, 0x93, 0x7E, 0xC1, 0x84, 0x99,
 		0x05, 0xAB, 0xE6, 0x03, 0xE2, 0x25,
 	}
-	return bytes.Equal(leX3[:], cer.AuthorityKeyId) ||
+    leR3 := [...]byte{
+        0x14, 0x2E, 0xB3, 0x17, 0xB7, 0x58, 0x56,
+        0xCB, 0xAE, 0x50, 0x09, 0x40, 0xE6, 0x1F,
+        0xAF, 0x9D, 0x8B, 0x14, 0xC2, 0xC6,
+    }
+	return bytes.Equal(leR3[:], cer.AuthorityKeyId) ||
+		bytes.Equal(leX3[:], cer.AuthorityKeyId) ||
 		bytes.Equal(leX4[:], cer.AuthorityKeyId)
 }
 
@@ -352,7 +358,7 @@ func getCertFromCertomat(fqdn string) error {
 	return err
 }
 
-const week = time.Hour * 24 * 7
+const week = 3 * time.Hour * 24 * 7
 
 func renew(fqdn string, leaf *x509.Certificate) {
 	log.Print("Expires: ", leaf.NotAfter)
