@@ -3,14 +3,54 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:2e3d3271a660ec4ca0155434a6ce19933528b44942b42ff5c1c787057a2a0b88"
   name = "golang.org/x/crypto"
-  packages = ["acme","acme/autocert"]
-  revision = "c3a3ad6"
-  #revision = "0fe963104e9d1877082f8fb38f816fcd97eb1d10"
+  packages = [
+    "acme",
+    "acme/autocert",
+  ]
+  pruneopts = ""
+  revision = "089bfa5675191fd96a44247682f76ebca03d7916"
+
+[[projects]]
+  branch = "master"
+  digest = "1:34e5281ed1c6fe2a901de953cec308d524a899c4f029c8781a21f5073f89e1c6"
+  name = "golang.org/x/net"
+  packages = ["idna"]
+  pruneopts = ""
+  revision = "cf34111cab4d44b86fffdf353cebe86289a61dd6"
+
+[[projects]]
+  digest = "1:b9d5d15946537023d2ecb25955519ac7f055f459d48dc5876262d4859789bfb3"
+  name = "golang.org/x/text"
+  packages = [
+    "collate",
+    "collate/build",
+    "internal/colltab",
+    "internal/gen",
+    "internal/language",
+    "internal/language/compact",
+    "internal/tag",
+    "internal/triegen",
+    "internal/ucd",
+    "language",
+    "secure/bidirule",
+    "transform",
+    "unicode/bidi",
+    "unicode/cldr",
+    "unicode/norm",
+    "unicode/rangetable",
+  ]
+  pruneopts = ""
+  revision = "383b2e75a7a4198c42f8f87833eefb772868a56f"
+  version = "v0.3.7"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "482bebd72c897704e9e8836a9321551f5c9f501c6fd4fd9787ed7beb86b945b9"
+  input-imports = [
+    "golang.org/x/crypto/acme",
+    "golang.org/x/crypto/acme/autocert",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
