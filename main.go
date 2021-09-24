@@ -364,7 +364,7 @@ func renew(fqdn string, leaf *x509.Certificate) {
 	log.Print("Expires: ", leaf.NotAfter)
 	life := leaf.NotAfter.Sub(time.Now())
 	if life > week {
-		// Sleep until one week before expiration.
+		// Sleep until 3 weeks before expiration.
 		sleep := life - week
 		time.Sleep(sleep)
 	}
@@ -375,7 +375,7 @@ func renew(fqdn string, leaf *x509.Certificate) {
 		err := getCertFromCertomat(fqdn)
 		if err == nil {
 			log.Print("Renewed certificate, exiting to reload it.")
-			os.Exit(0)
+			os.Exit(1)
 		}
 		log.Print("Renewal failed: ", err)
 		// try again in 12 hours
