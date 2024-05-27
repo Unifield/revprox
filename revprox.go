@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"log"
 	"net"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"strings"
 	"time"
 	"fmt"
-	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -130,12 +128,6 @@ func rp(listenPort string) *httputil.ReverseProxy {
 }
 
 func getHttpClient() *http.Client {
-	// Load the LetsEncrypt root
-	roots := x509.NewCertPool()
-	ok := roots.AppendCertsFromPEM([]byte(lePem))
-	if !ok {
-		log.Fatal("failed to load certs")
-	}
 
 	return &http.Client{
 		// Use the same defaults as http.DefaultTransport
@@ -149,21 +141,12 @@ func getHttpClient() *http.Client {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			// But add our own TLS config to trust
-			// the LetsEncrypt certificates.
-			TLSClientConfig: &tls.Config{
-				RootCAs: roots,
-			},
 		},
 	}
 }
 
 func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-	ac := &acme.Client{
-		HTTPClient: getHttpClient(),
-	}
 	m := &autocert.Manager{
-		Client:     ac,
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(fqdn),
 		Cache:      autocert.DirCache(cacheDir()),

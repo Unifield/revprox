@@ -92,14 +92,10 @@ func main() {
 	keyFile := fmt.Sprintf("%v.key", fqdn)
 	cerFile := fmt.Sprintf("%v.cer", fqdn)
 
-	lePem = leProdPem
-	if isStaging(fqdn) {
-		lePem = leStagingPem
-	}
-
 	if ok, cer := checkCerKey(fqdn, cerFile, keyFile); ok {
 		log.Print("Using certificate in ", cerFile)
 		if isLE(cer) {
+            log.Println("LE certificate")
 			go renew(fqdn, cer)
 		}
 	} else if isCertomat(fqdn) {
@@ -144,27 +140,12 @@ func main() {
 }
 
 func isLE(cer *x509.Certificate) bool {
-	// Found these by running the certificates here:
-	// https://letsencrypt.org/certificates/
-	// through "openssl x509 -text".
-	leX3 := [...]byte{
-		0xA8, 0x4A, 0x6A, 0x63, 0x04, 0x7D, 0xDD,
-		0xBA, 0xE6, 0xD1, 0x39, 0xB7, 0xA6, 0x45,
-		0x65, 0xEF, 0xF3, 0xA8, 0xEC, 0xA1,
-	}
-	leX4 := [...]byte{
-		0xC5, 0xB1, 0xAB, 0x4E, 0x4C, 0xB1, 0xCD,
-		0x64, 0x30, 0x93, 0x7E, 0xC1, 0x84, 0x99,
-		0x05, 0xAB, 0xE6, 0x03, 0xE2, 0x25,
-	}
-    leR3 := [...]byte{
-        0x14, 0x2E, 0xB3, 0x17, 0xB7, 0x58, 0x56,
-        0xCB, 0xAE, 0x50, 0x09, 0x40, 0xE6, 0x1F,
-        0xAF, 0x9D, 0x8B, 0x14, 0xC2, 0xC6,
+    for _, org := range cer.Issuer.Organization {
+        if (org == "Let's Encrypt") {
+            return true
+        }
     }
-	return bytes.Equal(leR3[:], cer.AuthorityKeyId) ||
-		bytes.Equal(leX3[:], cer.AuthorityKeyId) ||
-		bytes.Equal(leX4[:], cer.AuthorityKeyId)
+    return false
 }
 
 func exists(fn string) bool {
@@ -173,56 +154,62 @@ func exists(fn string) bool {
 }
 
 func checkCerKey(fqdn, cerFile, keyFile string) (bool, *x509.Certificate) {
-	if !exists(keyFile) {
-		// Do not log anything here, because this is the normal,
-		// expected path when they are not providing the key/cer
-		// to us.
-		return false, nil
-	}
+    if !exists(keyFile) {
+        // Do not log anything here, because this is the normal,
+        // expected path when they are not providing the key/cer
+        // to us.
+        return false, nil
+    }
 
-	if !exists(cerFile) {
-		log.Printf("Key file %v exists but certificate file %v does not exist.", keyFile, cerFile)
-		return false, nil
-	}
+    if !exists(cerFile) {
+        log.Printf("Key file %v exists but certificate file %v does not exist.", keyFile, cerFile)
+        return false, nil
+    }
 
-	cer, err := tls.LoadX509KeyPair(cerFile, keyFile)
-	if err != nil {
-		log.Printf("Cannot load certificate: %v", err)
-		return false, nil
-	}
-	x509Cert, err := x509.ParseCertificate(cer.Certificate[0])
-	if err != nil {
-		log.Printf("Cannot parse certificate: %v", err)
-		return false, nil
-	}
+    cer, err := tls.LoadX509KeyPair(cerFile, keyFile)
+    if err != nil {
+        log.Printf("Cannot load certificate: %v", err)
+        return false, nil
+    }
+    x509Cert, err := x509.ParseCertificate(cer.Certificate[0])
+    if err != nil {
+        log.Printf("Cannot parse certificate: %v", err)
+        return false, nil
+    }
 
-	opt := x509.VerifyOptions{
-		DNSName: fqdn,
-	}
-	_, err = x509Cert.Verify(opt)
-	if err == nil {
-		log.Print("Validated via the system roots.")
-		return true, x509Cert
-	}
+    opt := x509.VerifyOptions{
+        DNSName: fqdn,
+    }
+    intermediates := x509.NewCertPool()
+    for i := 1; i < len(cer.Certificate); i++ {
+        inter, err := x509.ParseCertificate(cer.Certificate[i])
+        if err == nil {
+            intermediates.AddCert(inter)
+        }
+    }
+    opt.Intermediates = intermediates
+    _, err = x509Cert.Verify(opt)
+    if err == nil {
+        log.Print("Validated via the system roots.")
+        return true, x509Cert
+    }
 
-	// If we failed with the system roots, try with the LetsEncrypt
-	// ones, since some Windows do not trust LetsEncrypt yet.
-	// See https://github.com/golang/go/issues/18609 for why
-	// we cannot just add lePem into the result of SystemCertPool.
-	opt.Roots = x509.NewCertPool()
-	ok := opt.Roots.AppendCertsFromPEM([]byte(lePem))
-	if !ok {
-		log.Print("Cannot parse LE certificate.")
-		return false, nil
-	}
+    // If we failed with the system roots, try with the LetsEncrypt
+    // ones, since some Windows do not trust LetsEncrypt yet.
+    // See https://github.com/golang/go/issues/18609 for why
+    if isLE(x509Cert) {
+        opt.Roots = intermediates
 
-	_, err = x509Cert.Verify(opt)
-	if err != nil {
-		log.Printf("Found certificate in %v but: %v", cerFile, err)
-		return false, nil
-	}
-	log.Print("Validated via the LetsEncrypt root.")
-	return true, x509Cert
+        _, err = x509Cert.Verify(opt)
+        if err == nil {
+            log.Print("Validated via the LetsEncrypt root.")
+            return true, x509Cert
+
+        }
+    }
+
+    log.Printf("Found certificate in %v but: %v", cerFile, err)
+    return false, nil
 }
 
 func checkSelf(fqdn string, listenPort string, ok chan bool) {
