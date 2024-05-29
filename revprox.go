@@ -146,12 +146,14 @@ func getHttpClient() *http.Client {
 }
 
 func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+    cache := cacheDir()
     m := &autocert.Manager{
         Prompt:     autocert.AcceptTOS,
         HostPolicy: autocert.HostWhitelist(fqdn),
-        Cache:      autocert.DirCache(cacheDir()),
+        Cache:      autocert.DirCache(cache),
     }
-    go http.ListenAndServe(fmt.Sprintf("%v:80", fqdn), m.HTTPHandler(nil))
+    log.Print("Cache dir ", cache)
+    go http.ListenAndServe(":80", m.HTTPHandler(nil))
     return m.GetCertificate
 }
 
