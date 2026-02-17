@@ -166,7 +166,7 @@ func cacheDir() string {
     return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
-func reverseProxy(keyFile, cerFile, fqdn string, listenPort string, http_request bool, xmlrpcPort string) {
+func reverseProxy(keyFile, cerFile, fqdn string, listenPort string, httpPort string, xmlrpcPort string, jsonrpcPort string) {
     // On Windows, another process (damn you, Skype) can open
     // port 443 in a way so that revprox still starts, but does not
     // work. Prevent that from happening.
@@ -219,9 +219,14 @@ func reverseProxy(keyFile, cerFile, fqdn string, listenPort string, http_request
         log.Print("Redirect /xmlrpc/ on ", listenPort," to ", xmlrpcPort)
     }
 
-    if http_request {
-        mux.Handle("/", rp(listenPort, "18061"))
-        log.Print("Redirect http requests on ", listenPort," to 18061")
+    if jsonrpcPort != "" {
+        mux.Handle("/xmlrpc/", rp(listenPort, jsonrpcPort))
+        log.Print("Redirect /jsonrpc/ on ", listenPort," to ", jsonrpcPort)
+    }
+
+    if httpPort != "" {
+        mux.Handle("/", rp(listenPort, httpPort))
+        log.Print("Redirect http requests on ", listenPort," to ", httpPort)
     }
 
     // Timeouts proposed by
