@@ -86,8 +86,8 @@ func singleJoiningSlash(a, b string) string {
 
 // This is httputil.NewSingleHostReverseProxy, but modified to
 // rewrite Referer and Location headers.
-func rp(listenPort string) *httputil.ReverseProxy {
-    target, err := url.Parse("http://127.0.0.1:18061")
+func rp(listenPort string, destinationPort string) *httputil.ReverseProxy {
+    target, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%v", destinationPort))
     if err != nil {
         log.Fatal(err)
     }
@@ -146,26 +146,27 @@ func getHttpClient() *http.Client {
 }
 
 func getCertViaLE(fqdn string) func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
-    cache := cacheDir()
     m := &autocert.Manager{
         Prompt:     autocert.AcceptTOS,
         HostPolicy: autocert.HostWhitelist(fqdn),
-        Cache:      autocert.DirCache(cache),
+        Cache:      autocert.DirCache(cacheDir()),
     }
-    log.Print("Cache dir ", cache)
-    go http.ListenAndServe(":80", m.HTTPHandler(nil))
+    go http.ListenAndServe(fmt.Sprintf("%v:80", fqdn), m.HTTPHandler(nil))
     return m.GetCertificate
 }
 
 func cacheDir() string {
     if runtime.GOOS == "windows" {
         home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+        if home == "" {
+            home = os.Getenv("USERPROFILE")
+        }
         return filepath.Join(home, "autocert")
     }
     return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
-func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
+func reverseProxy(keyFile, cerFile, fqdn string, listenPort string, http_request bool, xmlrpcPort string) {
     // On Windows, another process (damn you, Skype) can open
     // port 443 in a way so that revprox still starts, but does not
     // work. Prevent that from happening.
@@ -212,7 +213,16 @@ func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
     mux.Handle("/ok", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Write([]byte("ok"))
     }))
-    mux.Handle("/", rp(listenPort))
+
+    if xmlrpcPort != "" {
+        mux.Handle("/xmlrpc/", rp(listenPort, xmlrpcPort))
+        log.Print("Redirect /xmlrpc/ on ", listenPort," to ", xmlrpcPort)
+    }
+
+    if http_request {
+        mux.Handle("/", rp(listenPort, "18061"))
+        log.Print("Redirect http requests on ", listenPort," to 18061")
+    }
 
     // Timeouts proposed by
     // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
@@ -233,5 +243,6 @@ func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
     if err != nil {
         log.Fatal("reverse proxy could not listen: ", err)
     }
+
     return
 }

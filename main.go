@@ -51,6 +51,8 @@ var server = flag.String("server", "", "The server name.")
 var version = flag.Bool("version", false, "Show the version and exit.")
 var redirPorts = &portList{}
 var listenPort = flag.String("listen-port", "443", "Https port")
+var listenXmlrpcPort = flag.String("listen-xmlrpc-port", "", "If set will listen xmlrpc query on this port")
+var xmlrpcPort = flag.String("xmlrpc-port", "8069", "If set will redirect the /xmlrpc/ queries to this port")
 
 var gitRevision = "(dev)"
 
@@ -110,8 +112,16 @@ func main() {
         cerFile = ""
     }
 
-    go reverseProxy(keyFile, cerFile, fqdn, *listenPort)
+    var listenXmlrpc = ""
+    if *listenXmlrpcPort != "" && *listenXmlrpcPort == *listenPort {
+       listenXmlrpc = *xmlrpcPort
+    }
+    go reverseProxy(keyFile, cerFile, fqdn, *listenPort, true, listenXmlrpc)
+    if *listenXmlrpcPort != "" && *listenXmlrpcPort != *listenPort {
+        go reverseProxy(keyFile, cerFile, fqdn, *listenXmlrpcPort, false, *xmlrpcPort)
+    }
 
+    log.Print(*redirPorts)
     for _, port := range *redirPorts {
         go redir(port, fqdn, *listenPort)
     }
