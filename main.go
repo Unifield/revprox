@@ -51,6 +51,9 @@ var server = flag.String("server", "", "The server name.")
 var version = flag.Bool("version", false, "Show the version and exit.")
 var redirPorts = &portList{}
 var listenPort = flag.String("listen-port", "443", "Https port")
+var httpPort = flag.String("http-port", "", "If not empty, will redirect queries to Unifield Web.")
+var xmlrpcPort = flag.String("xmlrpc-port", "", "If set with a port number will redirect /xmlrpc/ queries to this port")
+var jsonrpcPort = flag.String("jsonpc-port", "", "If set with a port number will redirect /jsonrpc/ queries to this port")
 
 var gitRevision = "(dev)"
 
@@ -110,10 +113,12 @@ func main() {
         cerFile = ""
     }
 
-    go reverseProxy(keyFile, cerFile, fqdn, *listenPort)
+    go reverseProxy(keyFile, cerFile, fqdn, *listenPort, *httpPort, *xmlrpcPort, *jsonrpcPort)
 
-    for _, port := range *redirPorts {
-        go redir(port, fqdn, *listenPort)
+    if (*httpPort != "") {
+        for _, port := range *redirPorts {
+            go redir(port, fqdn, *listenPort)
+        }
     }
 
     // Fetch from ourselves once to confirm we are up, so that we
