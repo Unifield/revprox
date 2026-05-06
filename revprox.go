@@ -86,8 +86,8 @@ func singleJoiningSlash(a, b string) string {
 
 // This is httputil.NewSingleHostReverseProxy, but modified to
 // rewrite Referer and Location headers.
-func rp(listenPort string) *httputil.ReverseProxy {
-    target, err := url.Parse("http://127.0.0.1:18061")
+func rp(listenPort string, destinationPort string) *httputil.ReverseProxy {
+    target, err := url.Parse(fmt.Sprintf("http://127.0.0.1:%v", destinationPort))
     if err != nil {
         log.Fatal(err)
     }
@@ -165,13 +165,13 @@ func cacheDir() string {
     return filepath.Join(os.Getenv("HOME"), ".autocert")
 }
 
-func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
-    // On Windows, another process (damn you, Skype) can open
+func reverseProxy(keyFile, cerFile, fqdn string, listenPort string, httpPort string, xmlrpcPort string, jsonrpcPort string) {
+    // On Windows, another process can open
     // port 443 in a way so that revprox still starts, but does not
     // work. Prevent that from happening.
     _, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%s", listenPort))
     if err == nil {
-        log.Fatal("A server is already running on port", listenPort, "Is it Skype?")
+        log.Fatal("A server is already running on port", listenPort)
     }
 
     log.Print("Starting reverse proxy for ", fqdn)
@@ -212,7 +212,21 @@ func reverseProxy(keyFile, cerFile, fqdn string, listenPort string) {
     mux.Handle("/ok", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
         w.Write([]byte("ok"))
     }))
-    mux.Handle("/", rp(listenPort))
+
+    if xmlrpcPort != "" {
+        mux.Handle("/xmlrpc/", rp(listenPort, xmlrpcPort))
+        log.Print("Redirect /xmlrpc/ on ", listenPort," to ", xmlrpcPort)
+    }
+
+    if jsonrpcPort != "" {
+        mux.Handle("/jsonrpc/", rp(listenPort, jsonrpcPort))
+        log.Print("Redirect /jsonrpc/ on ", listenPort," to ", jsonrpcPort)
+    }
+
+    if httpPort != "" {
+        mux.Handle("/", rp(listenPort, httpPort))
+        log.Print("Redirect http requests on ", listenPort," to ", httpPort)
+    }
 
     // Timeouts proposed by
     // https://blog.gopheracademy.com/advent-2016/exposing-go-on-the-internet/
