@@ -53,7 +53,7 @@ var redirPorts = &portList{}
 var listenPort = flag.String("listen-port", "443", "Https port")
 var httpPort = flag.String("http-port", "", "If not empty, will redirect queries to Unifield Web.")
 var xmlrpcPort = flag.String("xmlrpc-port", "", "If set with a port number will redirect /xmlrpc/ queries to this port")
-var jsonrpcPort = flag.String("jsonpc-port", "", "If set with a port number will redirect /jsonrpc/ queries to this port")
+var jsonrpcPort = flag.String("jsonrpc-port", "", "If set with a port number will redirect /jsonrpc/ queries to this port")
 
 var gitRevision = "(dev)"
 
